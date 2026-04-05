@@ -2,12 +2,15 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depe
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 import uuid, json, os, stripe
 from datetime import datetime
 from dotenv import load_dotenv
+import sendgrid
+from sendgrid.helpers.mail import Mail
 
 from database import engine, get_db, Base
-from models import User, Lobby, LobbyMember, Friendship, FriendRequest, StripePayment
+from models import User, Lobby, LobbyMember, Friendship, FriendRequest, StripePayment, DirectMessage
 from auth import hash_password, verify_password, create_token, get_current_user
 
 load_dotenv()
@@ -15,6 +18,31 @@ load_dotenv()
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "noreply@betlobby.app")
+
+
+def send_welcome_email(to_email: str, username: str):
+    if not SENDGRID_API_KEY:
+        return
+    try:
+        sg = sendgrid.SendGridAPIClient(api_key=SENDGRID_API_KEY)
+        message = Mail(
+            from_email=SENDGRID_FROM_EMAIL,
+            to_emails=to_email,
+            subject="Welcome to BetLobby! 🎯",
+            html_content=f"""
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0a0a0f;color:#f0f0f0;padding:40px;border-radius:16px;">
+              <h1 style="color:#c8ff00;font-size:28px;margin-bottom:8px;">Welcome, {username}!</h1>
+              <p style="color:#999;margin-bottom:24px;">Your BetLobby account is ready. Settle bets with friends — no Venmo needed.</p>
+              <a href="{FRONTEND_URL}" style="display:inline-block;background:#c8ff00;color:#0a0a0f;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;">Start Betting →</a>
+              <p style="color:#555;font-size:12px;margin-top:32px;">You're receiving this because you signed up at BetLobby.</p>
+            </div>
+            """,
+        )
+        sg.send(message)
+    except Exception as e:
+        print(f"SendGrid error: {e}")
 
 # Create all DB tables on startup
 Base.metadata.create_all(bind=engine)
@@ -55,6 +83,28 @@ class ConnectionManager:
                 pass
 
 manager = ConnectionManager()
+
+
+class UserConnectionManager:
+    def __init__(self):
+        self.connections: dict[str, WebSocket] = {}
+
+    async def connect(self, user_id: str, ws: WebSocket):
+        await ws.accept()
+        self.connections[user_id] = ws
+
+    def disconnect(self, user_id: str):
+        self.connections.pop(user_id, None)
+
+    async def send_to_user(self, user_id: str, message: dict):
+        ws = self.connections.get(user_id)
+        if ws:
+            try:
+                await ws.send_text(json.dumps(message))
+            except Exception:
+                pass
+
+user_manager = UserConnectionManager()
 
 
 # ─── Serializers ─────────────────────────────────────────────────────────────
@@ -102,6 +152,10 @@ def serialize_lobby(lobby: Lobby, db: Session) -> dict:
 class SignupRequest(BaseModel):
     username: str
     password: str
+    email: str = ""
+
+class SendMessageBody(BaseModel):
+    content: str
 
 class LoginRequest(BaseModel):
     username: str
@@ -135,11 +189,16 @@ def signup(req: SignupRequest, db: Session = Depends(get_db)):
         raise HTTPException(400, "Password must be at least 6 characters")
     if db.query(User).filter(User.username == req.username.strip()).first():
         raise HTTPException(400, "Username already taken")
+    email = req.email.strip().lower() if req.email else None
+    if email and db.query(User).filter(User.email == email).first():
+        raise HTTPException(400, "Email already in use")
 
-    user = User(username=req.username.strip(), hashed_password=hash_password(req.password))
+    user = User(username=req.username.strip(), hashed_password=hash_password(req.password), email=email)
     db.add(user)
     db.commit()
     db.refresh(user)
+    if email:
+        send_welcome_email(email, user.username)
     return {"token": create_token(user.id), "user": serialize_user(user)}
 
 
@@ -425,6 +484,47 @@ def payment_history(current_user: User = Depends(get_current_user),
     return [{"amount": p.amount, "created_at": p.created_at.isoformat()} for p in payments]
 
 
+# ─── Chat ─────────────────────────────────────────────────────────────────────
+
+@app.get("/chat/{friend_id}")
+def get_chat(friend_id: str, db: Session = Depends(get_db),
+             current_user: User = Depends(get_current_user)):
+    messages = db.query(DirectMessage).filter(
+        or_(
+            and_(DirectMessage.from_id == current_user.id, DirectMessage.to_id == friend_id),
+            and_(DirectMessage.from_id == friend_id, DirectMessage.to_id == current_user.id),
+        )
+    ).order_by(DirectMessage.created_at.asc()).all()
+    return [
+        {"id": m.id, "from_id": m.from_id, "content": m.content,
+         "created_at": m.created_at.isoformat()}
+        for m in messages
+    ]
+
+
+@app.post("/chat/{friend_id}")
+async def send_message(friend_id: str, body: SendMessageBody,
+                       db: Session = Depends(get_db),
+                       current_user: User = Depends(get_current_user)):
+    if not body.content.strip():
+        raise HTTPException(400, "Message cannot be empty")
+    friend = db.query(User).filter(User.id == friend_id).first()
+    if not friend:
+        raise HTTPException(404, "User not found")
+    msg = DirectMessage(from_id=current_user.id, to_id=friend_id,
+                        content=body.content.strip())
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    serialized = {"id": msg.id, "from_id": msg.from_id, "content": msg.content,
+                  "created_at": msg.created_at.isoformat()}
+    await user_manager.send_to_user(
+        friend_id,
+        {"type": "new_message", "message": serialized, "from_username": current_user.username},
+    )
+    return serialized
+
+
 # ─── WebSocket ────────────────────────────────────────────────────────────────
 
 @app.websocket("/ws/{lobby_id}")
@@ -435,3 +535,13 @@ async def websocket_endpoint(websocket: WebSocket, lobby_id: str):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(lobby_id, websocket)
+
+
+@app.websocket("/ws/user/{user_id}")
+async def user_websocket(websocket: WebSocket, user_id: str):
+    await user_manager.connect(user_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        user_manager.disconnect(user_id)

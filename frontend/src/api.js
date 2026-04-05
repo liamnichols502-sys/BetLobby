@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+const BASE = import.meta.env.VITE_API_URL || "https://betlobby-production.up.railway.app";
 
 function getToken() {
   return localStorage.getItem("betlobby_token") || "";
@@ -19,11 +19,11 @@ async function handle(res) {
 
 export const api = {
   // Auth
-  signup: (username, password) =>
+  signup: (username, password, email = "") =>
     fetch(`${BASE}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, email }),
     }).then(handle),
 
   login: (username, password) =>
@@ -98,11 +98,28 @@ export const api = {
 
   getPaymentHistory: () =>
     fetch(`${BASE}/payments/history`, { headers: authHeaders() }).then(handle),
+
+  // Chat
+  getMessages: (friendId) =>
+    fetch(`${BASE}/chat/${friendId}`, { headers: authHeaders() }).then(handle),
+
+  sendMessage: (friendId, content) =>
+    fetch(`${BASE}/chat/${friendId}`, {
+      method: "POST", headers: authHeaders(),
+      body: JSON.stringify({ content }),
+    }).then(handle),
 };
 
 export function createLobbySocket(lobbyId, onMessage) {
-  const wsBase = (import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`).replace("https://", "wss://").replace("http://", "ws://");
+  const wsBase = (import.meta.env.VITE_API_URL || "https://betlobby-production.up.railway.app").replace("https://", "wss://").replace("http://", "ws://");
   const ws = new WebSocket(`${wsBase}/ws/${lobbyId}`);
+  ws.onmessage = (e) => onMessage(JSON.parse(e.data));
+  return ws;
+}
+
+export function createUserSocket(userId, onMessage) {
+  const wsBase = (import.meta.env.VITE_API_URL || "https://betlobby-production.up.railway.app").replace("https://", "wss://").replace("http://", "ws://");
+  const ws = new WebSocket(`${wsBase}/ws/user/${userId}`);
   ws.onmessage = (e) => onMessage(JSON.parse(e.data));
   return ws;
 }

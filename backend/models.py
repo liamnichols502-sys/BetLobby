@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
@@ -14,6 +14,7 @@ class User(Base):
 
     id = Column(String, primary_key=True, default=gen_id)
     username = Column(String, unique=True, nullable=False, index=True)
+    email = Column(String, nullable=True, unique=True, index=True)
     hashed_password = Column(String, nullable=False)
     balance = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -62,6 +63,18 @@ class FriendRequest(Base):
     from_id = Column(String, ForeignKey("users.id"), primary_key=True)
     to_id = Column(String, ForeignKey("users.id"), primary_key=True)
     sent_at = Column(DateTime, default=datetime.utcnow)
+
+    sender = relationship("User", foreign_keys=[from_id])
+
+
+class DirectMessage(Base):
+    __tablename__ = "direct_messages"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    from_id = Column(String, ForeignKey("users.id"), nullable=False)
+    to_id = Column(String, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     sender = relationship("User", foreign_keys=[from_id])
 

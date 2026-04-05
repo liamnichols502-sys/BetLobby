@@ -14,8 +14,8 @@ export function UserProvider({ children }) {
     setUser(u);
   };
 
-  const signup = async (username, password) => {
-    const { token, user: u } = await api.signup(username, password);
+  const signup = async (username, password, email = "") => {
+    const { token, user: u } = await api.signup(username, password, email);
     localStorage.setItem("betlobby_token", token);
     saveUser(u);
     return u;

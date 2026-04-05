@@ -211,3 +211,27 @@ body {
 .history-badge.won { background: rgba(34,197,94,0.15); color: #16a34a; }
 .history-badge.lost { background: rgba(239,68,68,0.12); color: var(--danger); }
 .history-bottom { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+
+/* Chat */
+.chat-layout { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+.chat-sidebar { width: 240px; min-width: 200px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--bg2); }
+.chat-sidebar-header { padding: 16px 14px 10px; font-weight: 700; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.chat-friend-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; border-radius: 0; transition: background 0.15s; }
+.chat-friend-row:hover, .chat-friend-row.active { background: var(--bg3); }
+.chat-friend-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #000; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.chat-friend-name { flex: 1; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-unread { background: var(--accent); color: #000; font-size: 11px; font-weight: 700; border-radius: 99px; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+.chat-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chat-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.chat-empty { color: var(--muted); font-size: 14px; text-align: center; margin-top: 40px; }
+.chat-bubble-wrap { display: flex; flex-direction: column; }
+.chat-bubble-wrap.mine { align-items: flex-end; }
+.chat-bubble-wrap.theirs { align-items: flex-start; }
+.chat-bubble { max-width: 72%; padding: 9px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; word-break: break-word; }
+.chat-bubble.mine { background: var(--accent); color: #000; border-bottom-right-radius: 4px; }
+.chat-bubble.theirs { background: var(--bg3); color: var(--text); border-bottom-left-radius: 4px; }
+.chat-time { font-size: 11px; color: var(--muted); margin-top: 3px; padding: 0 4px; }
+.chat-input-bar { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); background: var(--bg2); }
+.chat-input-bar .input { flex: 1; border-radius: 20px; padding: 9px 16px; }
+.chat-select-hint { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }

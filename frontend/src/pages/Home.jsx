@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useUser } from "../context/UserContext";
 import { api } from "../api";
 import Friends from "../components/Friends";
+import Logo from "../components/Logo";
 
-export default function Home({ onEnterLobby, onWallet, onHistory }) {
+export default function Home({ onEnterLobby, onWallet, onHistory, onChat }) {
   const { user, logout, refreshUser } = useUser();
   const [tab, setTab] = useState("create");
   const [form, setForm] = useState({ name: "", bet_description: "", stake: "" });
@@ -46,13 +47,14 @@ export default function Home({ onEnterLobby, onWallet, onHistory }) {
   return (
     <div className="screen">
       <header className="topbar">
-        <span className="logo-text small">🎯 BetLobby</span>
+        <Logo size={36} showText={true} textSize={18} />
         <div className="user-pill">
           <button className="btn-ghost balance-btn" onClick={onWallet}>
             💰 ${user.balance?.toFixed(2)}
           </button>
           <span className="username">{user.username}</span>
           <button className="btn-ghost" onClick={onHistory} title="Bet history">📊</button>
+          <button className="btn-ghost" onClick={onChat} title="Messages">💬</button>
           <button className="btn-ghost" onClick={logout}>Out</button>
         </div>
       </header>

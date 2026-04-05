@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useUser } from "../context/UserContext";
+import Logo from "../components/Logo";
 
 export default function Login() {
   const { login, signup } = useUser();
-  const [mode, setMode] = useState("login"); // login | signup
+  const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -16,7 +18,7 @@ export default function Login() {
     setErr("");
     try {
       if (mode === "signup") {
-        await signup(username.trim(), password);
+        await signup(username.trim(), password, email.trim());
       } else {
         await login(username.trim(), password);
       }
@@ -30,8 +32,10 @@ export default function Login() {
   return (
     <div className="screen center">
       <div className="login-card">
-        <div className="logo-mark">🎯</div>
-        <h1 className="logo-text">BetLobby</h1>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "4px" }}>
+          <Logo size={56} />
+        </div>
+        <h1 className="logo-text" style={{ marginTop: "12px" }}>BetLobby</h1>
         <p className="tagline">Settle it. No Venmo needed.</p>
 
         <div className="tabs" style={{ marginBottom: "16px" }}>
@@ -54,6 +58,15 @@ export default function Login() {
             maxLength={20}
             autoFocus
           />
+          {mode === "signup" && (
+            <input
+              className="input"
+              type="email"
+              placeholder="Email (optional — for welcome email)"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+          )}
           <input
             className="input"
             type="password"
