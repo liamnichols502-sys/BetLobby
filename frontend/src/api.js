@@ -1,4 +1,4 @@
-const BASE = `http://${window.location.hostname}:8000`;
+const BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
 
 function getToken() {
   return localStorage.getItem("betlobby_token") || "";
@@ -101,7 +101,8 @@ export const api = {
 };
 
 export function createLobbySocket(lobbyId, onMessage) {
-  const ws = new WebSocket(`ws://${window.location.hostname}:8000/ws/${lobbyId}`);
+  const wsBase = (import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`).replace("https://", "wss://").replace("http://", "ws://");
+  const ws = new WebSocket(`${wsBase}/ws/${lobbyId}`);
   ws.onmessage = (e) => onMessage(JSON.parse(e.data));
   return ws;
 }
