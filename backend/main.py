@@ -22,27 +22,79 @@ SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "noreply@betlobby.app")
 
 
-def send_welcome_email(to_email: str, username: str):
+def _send_email(to_email: str, subject: str, html: str):
     if not SENDGRID_API_KEY:
         return
     try:
         sg = sendgrid.SendGridAPIClient(api_key=SENDGRID_API_KEY)
-        message = Mail(
-            from_email=SENDGRID_FROM_EMAIL,
-            to_emails=to_email,
-            subject="Welcome to BetLobby! 🎯",
-            html_content=f"""
-            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0a0a0f;color:#f0f0f0;padding:40px;border-radius:16px;">
-              <h1 style="color:#c8ff00;font-size:28px;margin-bottom:8px;">Welcome, {username}!</h1>
-              <p style="color:#999;margin-bottom:24px;">Your BetLobby account is ready. Settle bets with friends — no Venmo needed.</p>
-              <a href="{FRONTEND_URL}" style="display:inline-block;background:#c8ff00;color:#0a0a0f;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;">Start Betting →</a>
-              <p style="color:#555;font-size:12px;margin-top:32px;">You're receiving this because you signed up at BetLobby.</p>
-            </div>
-            """,
-        )
-        sg.send(message)
+        sg.send(Mail(from_email=SENDGRID_FROM_EMAIL, to_emails=to_email,
+                     subject=subject, html_content=html))
     except Exception as e:
         print(f"SendGrid error: {e}")
+
+
+def send_welcome_email(to_email: str, username: str):
+    _send_email(
+        to_email,
+        "Welcome to BetLobby! 🎯",
+        f"""
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0a0a0f;color:#f0f0f0;padding:40px;border-radius:16px;">
+          <h1 style="color:#c8ff00;font-size:28px;margin-bottom:8px;">Welcome, {username}!</h1>
+          <p style="color:#999;margin-bottom:24px;">Your BetLobby account is ready. Settle bets with friends — no Venmo needed.</p>
+          <a href="{FRONTEND_URL}" style="display:inline-block;background:#c8ff00;color:#0a0a0f;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;">Start Betting →</a>
+          <p style="color:#555;font-size:12px;margin-top:32px;">You're receiving this because you signed up at BetLobby.</p>
+        </div>
+        """,
+    )
+
+
+def send_winner_email(to_email: str, username: str, lobby_name: str, payout: float):
+    _send_email(
+        to_email,
+        f"You won ${payout:.2f} on BetLobby! 🏆",
+        f"""
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0a0a0f;color:#f0f0f0;padding:40px;border-radius:16px;">
+          <h1 style="color:#c8ff00;font-size:28px;margin-bottom:8px;">You won, {username}! 🎉</h1>
+          <p style="color:#ccc;font-size:16px;margin-bottom:8px;">Your bet on <strong style="color:#fff;">"{lobby_name}"</strong> paid off.</p>
+          <p style="color:#c8ff00;font-size:32px;font-weight:700;margin:16px 0;">${payout:.2f}</p>
+          <p style="color:#999;margin-bottom:24px;">Your winnings are in your wallet. Ready to run it back?</p>
+          <a href="{FRONTEND_URL}" style="display:inline-block;background:#c8ff00;color:#0a0a0f;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;">Create a New Lobby →</a>
+          <p style="color:#555;font-size:12px;margin-top:32px;">You're receiving this because you have an account at BetLobby.</p>
+        </div>
+        """,
+    )
+
+
+def send_deposit_email(to_email: str, username: str, amount: float, new_balance: float):
+    _send_email(
+        to_email,
+        f"Deposit confirmed — ${amount:.2f} added to your wallet",
+        f"""
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0a0a0f;color:#f0f0f0;padding:40px;border-radius:16px;">
+          <h1 style="color:#c8ff00;font-size:24px;margin-bottom:8px;">Deposit confirmed, {username}!</h1>
+          <p style="color:#ccc;margin-bottom:8px;">We've added <strong style="color:#c8ff00;">${amount:.2f}</strong> to your BetLobby wallet.</p>
+          <p style="color:#999;margin-bottom:4px;">New balance</p>
+          <p style="color:#fff;font-size:28px;font-weight:700;margin:0 0 24px;">${new_balance:.2f}</p>
+          <a href="{FRONTEND_URL}" style="display:inline-block;background:#c8ff00;color:#0a0a0f;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;">Start a Lobby →</a>
+          <p style="color:#555;font-size:12px;margin-top:32px;">You're receiving this because you made a deposit at BetLobby.</p>
+        </div>
+        """,
+    )
+
+
+def send_friend_request_email(to_email: str, to_username: str, from_username: str):
+    _send_email(
+        to_email,
+        f"{from_username} wants to be your friend on BetLobby",
+        f"""
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0a0a0f;color:#f0f0f0;padding:40px;border-radius:16px;">
+          <h1 style="color:#c8ff00;font-size:24px;margin-bottom:8px;">Hey {to_username}!</h1>
+          <p style="color:#ccc;margin-bottom:24px;"><strong style="color:#fff;">{from_username}</strong> sent you a friend request on BetLobby. Accept it and challenge them to a bet.</p>
+          <a href="{FRONTEND_URL}" style="display:inline-block;background:#c8ff00;color:#0a0a0f;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;">Accept Request →</a>
+          <p style="color:#555;font-size:12px;margin-top:32px;">You're receiving this because you have an account at BetLobby.</p>
+        </div>
+        """,
+    )
 
 # Create all DB tables on startup
 Base.metadata.create_all(bind=engine)
@@ -255,6 +307,8 @@ def send_friend_request(user_id: str, body: FriendRequestBody,
 
     db.add(FriendRequest(from_id=user_id, to_id=body.target_id))
     db.commit()
+    if target.email:
+        send_friend_request_email(target.email, target.username, current_user.username)
     return {"message": f"Friend request sent to {target.username}"}
 
 
@@ -389,6 +443,8 @@ async def resolve_lobby(lobby_id: str, req: ResolveRequest,
 
     data = serialize_lobby(lobby, db)
     await manager.broadcast(lobby.id, {"type": "resolved", "lobby": data})
+    if winner.email:
+        send_winner_email(winner.email, winner.username, lobby.name, lobby.pot)
     return data
 
 
@@ -470,6 +526,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             user.balance += amount
             payment.status = "completed"
             db.commit()
+            if user.email:
+                send_deposit_email(user.email, user.username, amount, user.balance)
 
     return {"received": True}
 
